@@ -35,6 +35,8 @@ io.on('connection', (socket) => {
       socket.emit('app-error', '找不到房間，請先建立房間。');
       return;
     }
+
+    leaveCurrentRoom(socket);
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.role = role;
@@ -51,9 +53,15 @@ io.on('connection', (socket) => {
     broadcastState(roomId);
   });
 
-  socket.on('add-video', ({ roomId, input }) => {
-    const room = rooms.get(roomId);
-    if (!room) {
+  socket.on('add-video', ({ input }) => {
+    if (socket.data.role !== 'remote') {
+      socket.emit('app-error', '只有遙控器可以點歌。');
+      return;
+    }
+
+    const roomId = socket.data.roomId;
+    const room = roomId ? rooms.get(roomId) : null;
+    if (!roomId || !room) {
       socket.emit('app-error', '找不到房間。');
       return;
     }
@@ -82,9 +90,15 @@ io.on('connection', (socket) => {
     broadcastState(roomId);
   });
 
-  socket.on('playback-command', ({ roomId, action, value }) => {
-    const room = rooms.get(roomId);
-    if (!room || !room.current) {
+  socket.on('playback-command', ({ action, value }) => {
+    if (socket.data.role !== 'remote') {
+      socket.emit('app-error', '只有遙控器可以控制播放。');
+      return;
+    }
+
+    const roomId = socket.data.roomId;
+    const room = roomId ? rooms.get(roomId) : null;
+    if (!roomId || !room || !room.current) {
       return;
     }
 
@@ -92,9 +106,14 @@ io.on('connection', (socket) => {
     broadcastState(roomId);
   });
 
-  socket.on('video-ended', ({ roomId }) => {
-    const room = rooms.get(roomId);
-    if (!room) {
+  socket.on('video-ended', () => {
+    if (socket.data.role !== 'screen') {
+      return;
+    }
+
+    const roomId = socket.data.roomId;
+    const room = roomId ? rooms.get(roomId) : null;
+    if (!roomId || !room) {
       return;
     }
 
@@ -156,6 +175,38 @@ function createRoom() {
   return roomId;
 }
 
+function leaveCurrentRoom(socket) {
+  const previousRoomId = socket.data.roomId;
+  const previousRole = socket.data.role;
+  if (!previousRoomId || !previousRole) {
+    return;
+  }
+
+  const previousRoom = rooms.get(previousRoomId);
+  socket.leave(previousRoomId);
+  socket.data.roomId = undefined;
+  socket.data.role = undefined;
+
+  if (!previousRoom) {
+    return;
+  }
+
+  if (previousRole === 'screen' && previousRoom.screenCount > 0) {
+    previousRoom.screenCount -= 1;
+  }
+
+  if (previousRole === 'remote' && previousRoom.remoteCount > 0) {
+    previousRoom.remoteCount -= 1;
+  }
+
+  if (previousRoom.screenCount === 0 && previousRoom.remoteCount === 0) {
+    rooms.delete(previousRoomId);
+    return;
+  }
+
+  broadcastState(previousRoomId);
+}
+
 function createPlaybackState() {
   return {
     isPlaying: false,
@@ -181,11 +232,11 @@ function normalizeVideoInput(rawInput) {
   try {
     const url = new URL(input);
     if (url.hostname === 'youtu.be') {
-      const shortId = url.pathname.slice(1, 12);
-      if (shortId.length === 11) {
+      const shortMatch = url.pathname.match(/^\/([a-zA-Z0-9_-]{11})\/?$/);
+      if (shortMatch) {
         return {
-          videoId: shortId,
-          label: `YouTube 影片 ${shortId}`
+          videoId: shortMatch[1],
+          label: `YouTube 影片 ${shortMatch[1]}`
         };
       }
     }
