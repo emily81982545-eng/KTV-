@@ -1,0 +1,20 @@
+{
+  "name": "ktv-youtube-system",
+  "version": "1.0.0",
+  "description": "YouTube-based KTV system with TV player and mobile remote",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://localhost:26831/emily81982545-eng/KTV-"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}
