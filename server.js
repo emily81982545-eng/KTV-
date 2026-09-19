@@ -201,7 +201,8 @@ function normalizeVideoInput(rawInput) {
       }
     }
 
-    if (url.hostname.includes('youtube.com')) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname.endsWith('.youtube.com')) {
       const videoId = url.searchParams.get('v');
       if (videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
         return {

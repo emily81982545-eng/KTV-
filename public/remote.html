@@ -107,12 +107,12 @@
         if (!current) {
           currentSong.textContent = '尚未加入歌曲';
         } else {
-          currentSong.innerHTML = `
-            <strong>${current.label}</strong>
-            <span>影片 ID：${current.videoId}</span>
-            <span>目前時間：約 ${playbackTime} 秒</span>
-            <a href="https://www.youtube.com/watch?v=${current.videoId}" target="_blank" rel="noreferrer">在 YouTube 開啟</a>
-          `;
+          currentSong.replaceChildren(
+            buildTextElement('strong', current.label),
+            buildTextElement('span', `影片 ID：${current.videoId}`),
+            buildTextElement('span', `目前時間：約 ${playbackTime} 秒`),
+            buildLink(`https://www.youtube.com/watch?v=${encodeURIComponent(current.videoId)}`, '在 YouTube 開啟')
+          );
         }
 
         queueList.innerHTML = '';
@@ -124,7 +124,7 @@
         queueEmpty.hidden = true;
         state.queue.forEach((item) => {
           const li = document.createElement('li');
-          li.innerHTML = `<strong>${item.label}</strong><span>${item.videoId}</span>`;
+          li.append(buildTextElement('strong', item.label), buildTextElement('span', item.videoId));
           queueList.appendChild(li);
         });
       });
@@ -132,6 +132,21 @@
       socket.on('app-error', (message) => {
         alert(message);
       });
+
+      function buildTextElement(tagName, text) {
+        const element = document.createElement(tagName);
+        element.textContent = text;
+        return element;
+      }
+
+      function buildLink(href, text) {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = text;
+        return link;
+      }
     </script>
   </body>
 </html>

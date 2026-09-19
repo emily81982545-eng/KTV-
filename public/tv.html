@@ -108,7 +108,7 @@
         queueEmpty.hidden = true;
         queue.forEach((item) => {
           const li = document.createElement('li');
-          li.innerHTML = `<strong>${item.label}</strong><span>${item.videoId}</span>`;
+          li.append(buildTextElement('strong', item.label), buildTextElement('span', item.videoId));
           queueList.appendChild(li);
         });
       }
@@ -168,6 +168,12 @@
         }
 
         appliedPlaying = shouldPlay;
+      }
+
+      function buildTextElement(tagName, text) {
+        const element = document.createElement(tagName);
+        element.textContent = text;
+        return element;
       }
     </script>
   </body>
