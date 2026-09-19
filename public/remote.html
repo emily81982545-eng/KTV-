@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KTV 遙控器</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="card stack">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">手機遙控器</p>
+            <h1>房號 <span id="room-id">----</span></h1>
+          </div>
+          <a class="button secondary small" href="/">回首頁</a>
+        </div>
+
+        <form id="song-form" class="stack-inline">
+          <input id="song-input" placeholder="貼上 YouTube 連結或影片 ID" required />
+          <button type="submit">加入歌曲</button>
+        </form>
+
+        <div class="controls">
+          <button data-action="play">播放</button>
+          <button data-action="pause" class="secondary">暫停</button>
+          <button data-action="rewind" class="secondary">-10 秒</button>
+          <button data-action="forward" class="secondary">+10 秒</button>
+          <button data-action="next" class="danger">下一首</button>
+        </div>
+
+        <label>
+          跳轉秒數
+          <div class="stack-inline">
+            <input id="seek-input" type="number" min="0" step="1" value="0" />
+            <button id="seek-button" type="button" class="secondary">跳轉</button>
+          </div>
+        </label>
+      </section>
+
+      <section class="card stack">
+        <h2>目前歌曲</h2>
+        <div id="current-song" class="empty-state">尚未加入歌曲</div>
+      </section>
+
+      <section class="card stack">
+        <h2>待播清單</h2>
+        <ol id="queue-list" class="queue-list"></ol>
+        <div id="queue-empty" class="empty-state">目前沒有待播歌曲</div>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const roomId = (params.get('room') || '').toUpperCase();
+      const socket = io();
+      const roomIdLabel = document.getElementById('room-id');
+      const songForm = document.getElementById('song-form');
+      const songInput = document.getElementById('song-input');
+      const currentSong = document.getElementById('current-song');
+      const queueList = document.getElementById('queue-list');
+      const queueEmpty = document.getElementById('queue-empty');
+      const seekInput = document.getElementById('seek-input');
+      const seekButton = document.getElementById('seek-button');
+
+      if (!roomId) {
+        alert('缺少房號，將返回首頁。');
+        window.location.href = '/';
+      }
+
+      roomIdLabel.textContent = roomId;
+      socket.emit('join-room', { roomId, role: 'remote' });
+
+      songForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const input = songInput.value.trim();
+        if (!input) {
+          return;
+        }
+        socket.emit('add-video', { roomId, input });
+        songInput.value = '';
+      });
+
+      document.querySelectorAll('[data-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          socket.emit('playback-command', {
+            roomId,
+            action: button.dataset.action
+          });
+        });
+      });
+
+      seekButton.addEventListener('click', () => {
+        const seconds = Number(seekInput.value);
+        if (!Number.isFinite(seconds) || seconds < 0) {
+          return;
+        }
+        socket.emit('playback-command', { roomId, action: 'seek', value: seconds });
+      });
+
+      socket.on('state-sync', ({ state }) => {
+        const current = state.current;
+        const playbackTime = Math.floor(state.playback.currentTime || 0);
+
+        if (!current) {
+          currentSong.replaceChildren(document.createTextNode('尚未加入歌曲'));
+        } else {
+          currentSong.replaceChildren(
+            buildTextElement('strong', current.label),
+            buildTextElement('span', `影片 ID：${current.videoId}`),
+            buildTextElement('span', `目前時間：約 ${playbackTime} 秒`),
+            buildLink(`https://www.youtube.com/watch?v=${encodeURIComponent(current.videoId)}`, '在 YouTube 開啟')
+          );
+        }
+
+        queueList.innerHTML = '';
+        if (!state.queue.length) {
+          queueEmpty.hidden = false;
+          return;
+        }
+
+        queueEmpty.hidden = true;
+        state.queue.forEach((item) => {
+          const li = document.createElement('li');
+          li.append(buildTextElement('strong', item.label), buildTextElement('span', item.videoId));
+          queueList.appendChild(li);
+        });
+      });
+
+      socket.on('app-error', (message) => {
+        alert(message);
+      });
+
+      function buildTextElement(tagName, text) {
+        const element = document.createElement(tagName);
+        element.textContent = text;
+        return element;
+      }
+
+      function buildLink(href, text) {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = text;
+        return link;
+      }
+    </script>
+  </body>
+</html>

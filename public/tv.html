@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KTV 播放器</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="tv-body">
+    <main class="tv-layout">
+      <section class="player-card">
+        <div class="toolbar overlay">
+          <div>
+            <p class="eyebrow">電腦播放器</p>
+            <h1>房號 <span id="room-id">----</span></h1>
+          </div>
+          <a class="button secondary small" href="/">回首頁</a>
+        </div>
+        <div id="player"></div>
+        <div id="player-placeholder" class="placeholder">請先用手機遙控器加入 YouTube 歌曲</div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="card stack compact">
+          <h2>手機遙控連結</h2>
+          <p class="muted" id="remote-url"></p>
+        </section>
+        <section class="card stack compact">
+          <h2>待播清單</h2>
+          <ol id="queue-list" class="queue-list"></ol>
+          <div id="queue-empty" class="empty-state">目前沒有待播歌曲</div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const roomId = (params.get('room') || '').toUpperCase();
+      const roomIdLabel = document.getElementById('room-id');
+      const remoteUrl = document.getElementById('remote-url');
+      const queueList = document.getElementById('queue-list');
+      const queueEmpty = document.getElementById('queue-empty');
+      const placeholder = document.getElementById('player-placeholder');
+      const socket = io();
+      let player;
+      let playerReady = false;
+      let latestState = null;
+      let appliedVideoId = null;
+      let appliedPlaying = false;
+      let lastStateFingerprint = '';
+
+      if (!roomId) {
+        alert('缺少房號，將返回首頁。');
+        window.location.href = '/';
+      }
+
+      roomIdLabel.textContent = roomId;
+      remoteUrl.textContent = `${window.location.origin}/remote.html?room=${roomId}`;
+      socket.emit('join-room', { roomId, role: 'screen' });
+
+      window.onYouTubeIframeAPIReady = () => {
+        player = new YT.Player('player', {
+          height: '100%',
+          width: '100%',
+          videoId: '',
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            rel: 0
+          },
+          events: {
+            onReady: () => {
+              playerReady = true;
+              syncPlayer();
+            },
+            onStateChange: (event) => {
+              if (event.data === YT.PlayerState.ENDED) {
+                socket.emit('video-ended', { roomId });
+              }
+            }
+          }
+        });
+      };
+
+      socket.on('room-joined', ({ state }) => {
+        latestState = state;
+        syncPlayer();
+      });
+
+      socket.on('state-sync', ({ state }) => {
+        latestState = state;
+        syncPlayer();
+      });
+
+      socket.on('app-error', (message) => {
+        alert(message);
+      });
+
+      function renderQueue(queue) {
+        queueList.innerHTML = '';
+        if (!queue.length) {
+          queueEmpty.hidden = false;
+          return;
+        }
+
+        queueEmpty.hidden = true;
+        queue.forEach((item) => {
+          const li = document.createElement('li');
+          li.append(buildTextElement('strong', item.label), buildTextElement('span', item.videoId));
+          queueList.appendChild(li);
+        });
+      }
+
+      function syncPlayer() {
+        if (!latestState) {
+          return;
+        }
+
+        placeholder.hidden = Boolean(latestState.current);
+        renderQueue(latestState.queue);
+
+        if (!latestState.current) {
+          appliedVideoId = null;
+          appliedPlaying = false;
+          lastStateFingerprint = '';
+          if (playerReady && typeof player.stopVideo === 'function') {
+            player.stopVideo();
+          }
+          return;
+        }
+
+        if (!playerReady) {
+          return;
+        }
+
+        const nextVideoId = latestState.current.videoId;
+        const nextTime = Number(latestState.playback.currentTime || 0);
+        const shouldPlay = Boolean(latestState.playback.isPlaying);
+        const stateFingerprint = `${nextVideoId}:${Math.floor(nextTime)}:${shouldPlay}`;
+
+        if (stateFingerprint === lastStateFingerprint) {
+          return;
+        }
+
+        lastStateFingerprint = stateFingerprint;
+
+        if (appliedVideoId !== nextVideoId) {
+          player.loadVideoById({ videoId: nextVideoId, startSeconds: nextTime });
+          appliedVideoId = nextVideoId;
+          if (!shouldPlay) {
+            player.pauseVideo();
+          }
+        } else {
+          const currentTime = typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0;
+          if (Math.abs(currentTime - nextTime) > 2) {
+            player.seekTo(nextTime, true);
+          }
+
+          if (shouldPlay && !appliedPlaying) {
+            player.playVideo();
+          }
+
+          if (!shouldPlay && appliedPlaying) {
+            player.pauseVideo();
+          }
+        }
+
+        appliedPlaying = shouldPlay;
+      }
+
+      function buildTextElement(tagName, text) {
+        const element = document.createElement(tagName);
+        element.textContent = text;
+        return element;
+      }
+    </script>
+  </body>
+</html>

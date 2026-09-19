@@ -1,0 +1,205 @@
+:root {
+  color-scheme: dark;
+  font-family: "Noto Sans TC", system-ui, sans-serif;
+  background: #09111f;
+  color: #f5f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #18365d, #09111f 55%);
+}
+
+button,
+input,
+a {
+  font: inherit;
+}
+
+button,
+.button {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.9rem 1.2rem;
+  background: #6a8dff;
+  color: white;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+}
+
+button.secondary,
+.button.secondary {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+button.danger {
+  background: #db5461;
+}
+
+button.small,
+.button.small {
+  padding: 0.55rem 1rem;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(6, 13, 25, 0.8);
+  color: inherit;
+  padding: 0.95rem 1rem;
+}
+
+main.page {
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.page-center {
+  display: grid;
+  align-content: center;
+  min-height: 100vh;
+}
+
+.card,
+.player-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 19, 35, 0.82);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.hero h1,
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.stack-inline,
+.actions,
+.controls,
+.toolbar,
+.link-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbar {
+  justify-content: space-between;
+}
+
+.eyebrow {
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9cb4ff;
+  font-size: 0.85rem;
+}
+
+.muted,
+.empty-state,
+#current-song span,
+#current-song a,
+.queue-list span {
+  color: #b4bed6;
+}
+
+.queue-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.queue-list li,
+#current-song {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.tv-body {
+  background: #02060f;
+}
+
+.tv-layout {
+  width: min(1440px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1rem 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 2.3fr) minmax(280px, 1fr);
+}
+
+.player-card {
+  position: relative;
+  min-height: calc(100vh - 2rem);
+  padding-top: 5rem;
+}
+
+.overlay {
+  position: absolute;
+  inset: 1rem 1rem auto 1rem;
+  z-index: 2;
+}
+
+#player {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background: black;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  color: #b4bed6;
+}
+
+.sidebar {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.compact {
+  padding: 1.25rem;
+}
+
+label {
+  display: grid;
+  gap: 0.55rem;
+}
+
+@media (max-width: 900px) {
+  .tv-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .player-card {
+    min-height: auto;
+  }
+}

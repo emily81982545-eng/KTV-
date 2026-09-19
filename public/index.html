@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KTV 點歌系統</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page page-center">
+      <section class="card hero">
+        <p class="eyebrow">YouTube KTV</p>
+        <h1>電腦唱歌、手機遙控</h1>
+        <p class="muted">建立房間後，電腦開啟播放器畫面，手機開啟遙控器畫面，就能用 YouTube 影片點歌與控制播放。</p>
+        <div class="actions">
+          <button id="create-room">建立新房間</button>
+          <a class="button secondary" href="#join">加入既有房間</a>
+        </div>
+      </section>
+
+      <section class="card" id="room-panel" hidden>
+        <h2>房間已建立</h2>
+        <p>房號：<strong id="room-id"></strong></p>
+        <div class="link-group">
+          <a id="tv-link" class="button" target="_blank" rel="noreferrer">開啟電腦播放器</a>
+          <a id="remote-link" class="button secondary" target="_blank" rel="noreferrer">開啟手機遙控器</a>
+        </div>
+      </section>
+
+      <section class="card" id="join">
+        <h2>已有房號？</h2>
+        <form id="join-form" class="stack">
+          <label>
+            房號
+            <input id="join-room-id" name="roomId" maxlength="6" placeholder="例如 ABC123" required />
+          </label>
+          <div class="actions">
+            <button type="submit">開啟遙控器</button>
+            <button type="button" class="secondary" id="open-tv">開啟播放器</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const createRoomButton = document.getElementById('create-room');
+      const roomPanel = document.getElementById('room-panel');
+      const roomIdLabel = document.getElementById('room-id');
+      const tvLink = document.getElementById('tv-link');
+      const remoteLink = document.getElementById('remote-link');
+      const joinForm = document.getElementById('join-form');
+      const joinRoomId = document.getElementById('join-room-id');
+      const openTvButton = document.getElementById('open-tv');
+
+      function buildLinks(roomId) {
+        const tvUrl = `/tv.html?room=${encodeURIComponent(roomId)}`;
+        const remoteUrl = `/remote.html?room=${encodeURIComponent(roomId)}`;
+        roomIdLabel.textContent = roomId;
+        tvLink.href = tvUrl;
+        remoteLink.href = remoteUrl;
+        roomPanel.hidden = false;
+      }
+
+      createRoomButton.addEventListener('click', async () => {
+        createRoomButton.disabled = true;
+        try {
+          const response = await fetch('/api/rooms', { method: 'POST' });
+          if (!response.ok) {
+            throw new Error('create-room-failed');
+          }
+          const { roomId } = await response.json();
+          buildLinks(roomId);
+        } catch {
+          alert('建立房間失敗，請稍後再試。');
+        } finally {
+          createRoomButton.disabled = false;
+        }
+      });
+
+      joinForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const roomId = joinRoomId.value.trim().toUpperCase();
+        if (!roomId) {
+          return;
+        }
+        window.location.href = `/remote.html?room=${encodeURIComponent(roomId)}`;
+      });
+
+      openTvButton.addEventListener('click', () => {
+        const roomId = joinRoomId.value.trim().toUpperCase();
+        if (!roomId) {
+          joinRoomId.focus();
+          return;
+        }
+        window.open(`/tv.html?room=${encodeURIComponent(roomId)}`, '_blank', 'noreferrer');
+      });
+    </script>
+  </body>
+</html>
