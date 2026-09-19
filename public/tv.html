@@ -46,9 +46,10 @@
       const socket = io();
       let player;
       let playerReady = false;
+      let latestState = null;
       let appliedVideoId = null;
       let appliedPlaying = false;
-      let lastSyncedAt = 0;
+      let lastStateFingerprint = '';
 
       if (!roomId) {
         alert('缺少房號，將返回首頁。');
@@ -72,6 +73,7 @@
           events: {
             onReady: () => {
               playerReady = true;
+              syncPlayer();
             },
             onStateChange: (event) => {
               if (event.data === YT.PlayerState.ENDED) {
@@ -82,44 +84,14 @@
         });
       };
 
+      socket.on('room-joined', ({ state }) => {
+        latestState = state;
+        syncPlayer();
+      });
+
       socket.on('state-sync', ({ state }) => {
-        placeholder.hidden = Boolean(state.current);
-        renderQueue(state.queue);
-
-        if (!state.current || !playerReady) {
-          return;
-        }
-
-        const nextVideoId = state.current.videoId;
-        const nextTime = Number(state.playback.currentTime || 0);
-        const shouldPlay = Boolean(state.playback.isPlaying);
-        const stateFingerprint = `${nextVideoId}:${Math.floor(nextTime)}:${shouldPlay}`;
-
-        if (stateFingerprint === lastSyncedAt) {
-          return;
-        }
-        lastSyncedAt = stateFingerprint;
-
-        if (appliedVideoId !== nextVideoId) {
-          player.loadVideoById({ videoId: nextVideoId, startSeconds: nextTime });
-          appliedVideoId = nextVideoId;
-        } else if (Math.abs(player.getCurrentTime() - nextTime) > 2) {
-          player.seekTo(nextTime, true);
-        }
-
-        if (shouldPlay && !appliedPlaying) {
-          player.playVideo();
-        }
-
-        if (!shouldPlay && appliedPlaying) {
-          player.pauseVideo();
-        }
-
-        if (!shouldPlay && appliedVideoId !== nextVideoId) {
-          player.pauseVideo();
-        }
-
-        appliedPlaying = shouldPlay;
+        latestState = state;
+        syncPlayer();
       });
 
       socket.on('app-error', (message) => {
@@ -139,6 +111,63 @@
           li.innerHTML = `<strong>${item.label}</strong><span>${item.videoId}</span>`;
           queueList.appendChild(li);
         });
+      }
+
+      function syncPlayer() {
+        if (!latestState) {
+          return;
+        }
+
+        placeholder.hidden = Boolean(latestState.current);
+        renderQueue(latestState.queue);
+
+        if (!latestState.current) {
+          appliedVideoId = null;
+          appliedPlaying = false;
+          lastStateFingerprint = '';
+          if (playerReady && typeof player.stopVideo === 'function') {
+            player.stopVideo();
+          }
+          return;
+        }
+
+        if (!playerReady) {
+          return;
+        }
+
+        const nextVideoId = latestState.current.videoId;
+        const nextTime = Number(latestState.playback.currentTime || 0);
+        const shouldPlay = Boolean(latestState.playback.isPlaying);
+        const stateFingerprint = `${nextVideoId}:${Math.floor(nextTime)}:${shouldPlay}`;
+
+        if (stateFingerprint === lastStateFingerprint) {
+          return;
+        }
+
+        lastStateFingerprint = stateFingerprint;
+
+        if (appliedVideoId !== nextVideoId) {
+          player.loadVideoById({ videoId: nextVideoId, startSeconds: nextTime });
+          appliedVideoId = nextVideoId;
+          if (!shouldPlay) {
+            player.pauseVideo();
+          }
+        } else {
+          const currentTime = typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0;
+          if (Math.abs(currentTime - nextTime) > 2) {
+            player.seekTo(nextTime, true);
+          }
+
+          if (shouldPlay && !appliedPlaying) {
+            player.playVideo();
+          }
+
+          if (!shouldPlay && appliedPlaying) {
+            player.pauseVideo();
+          }
+        }
+
+        appliedPlaying = shouldPlay;
       }
     </script>
   </body>
