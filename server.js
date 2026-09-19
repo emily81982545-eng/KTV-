@@ -30,7 +30,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const room = getOrCreateRoom(roomId);
+    const room = rooms.get(roomId);
+    if (!room) {
+      socket.emit('app-error', '找不到房間，請先建立房間。');
+      return;
+    }
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.role = role;
@@ -150,21 +154,6 @@ function createRoom() {
   });
 
   return roomId;
-}
-
-function getOrCreateRoom(roomId) {
-  if (!rooms.has(roomId)) {
-    rooms.set(roomId, {
-      current: null,
-      queue: [],
-      playback: createPlaybackState(),
-      screenCount: 0,
-      remoteCount: 0,
-      createdAt: Date.now()
-    });
-  }
-
-  return rooms.get(roomId);
 }
 
 function createPlaybackState() {

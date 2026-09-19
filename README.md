@@ -13,6 +13,10 @@
 
 ## 安裝與啟動
 
+需要環境：
+
+- Node.js 18 以上
+
 ```bash
 npm install
 npm start

@@ -65,6 +65,9 @@
         createRoomButton.disabled = true;
         try {
           const response = await fetch('/api/rooms', { method: 'POST' });
+          if (!response.ok) {
+            throw new Error('create-room-failed');
+          }
           const { roomId } = await response.json();
           buildLinks(roomId);
         } catch {

@@ -105,7 +105,7 @@
         const playbackTime = Math.floor(state.playback.currentTime || 0);
 
         if (!current) {
-          currentSong.textContent = '尚未加入歌曲';
+          currentSong.replaceChildren(document.createTextNode('尚未加入歌曲'));
         } else {
           currentSong.replaceChildren(
             buildTextElement('strong', current.label),
