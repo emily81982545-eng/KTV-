@@ -24,7 +24,10 @@ app.post('/api/rooms', (_req, res) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('join-room', ({ roomId, role }) => {
+  socket.on('join-room', (payload) => {
+    const roomId = normalizeRoomId(payload && payload.roomId);
+    const role = payload && payload.role;
+
     if (!roomId || !isValidRole(role)) {
       socket.emit('app-error', '無法加入房間。');
       return;
@@ -33,6 +36,31 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (!room) {
       socket.emit('app-error', '找不到房間，請先建立房間。');
+      return;
+    }
+
+    if (socket.data.roomId === roomId) {
+      if (socket.data.role !== role) {
+        if (socket.data.role === 'screen' && room.screenCount > 0) {
+          room.screenCount -= 1;
+        }
+
+        if (socket.data.role === 'remote' && room.remoteCount > 0) {
+          room.remoteCount -= 1;
+        }
+
+        socket.data.role = role;
+        if (role === 'screen') {
+          room.screenCount += 1;
+        }
+
+        if (role === 'remote') {
+          room.remoteCount += 1;
+        }
+      }
+
+      socket.emit('room-joined', { roomId, state: buildRoomState(room) });
+      broadcastState(roomId);
       return;
     }
 
@@ -53,7 +81,7 @@ io.on('connection', (socket) => {
     broadcastState(roomId);
   });
 
-  socket.on('add-video', ({ input }) => {
+  socket.on('add-video', (payload) => {
     if (socket.data.role !== 'remote') {
       socket.emit('app-error', '只有遙控器可以點歌。');
       return;
@@ -66,6 +94,7 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const input = payload && payload.input;
     const normalized = normalizeVideoInput(input);
     if (!normalized) {
       socket.emit('app-error', '請輸入有效的 YouTube 連結或影片 ID。');
@@ -90,12 +119,14 @@ io.on('connection', (socket) => {
     broadcastState(roomId);
   });
 
-  socket.on('playback-command', ({ action, value }) => {
+  socket.on('playback-command', (payload) => {
     if (socket.data.role !== 'remote') {
       socket.emit('app-error', '只有遙控器可以控制播放。');
       return;
     }
 
+    const action = payload && payload.action;
+    const value = payload && payload.value;
     const roomId = socket.data.roomId;
     const room = roomId ? rooms.get(roomId) : null;
     if (!roomId || !room || !room.current) {
@@ -151,6 +182,15 @@ io.on('connection', (socket) => {
 
 function isValidRole(role) {
   return role === 'screen' || role === 'remote';
+}
+
+function normalizeRoomId(rawRoomId) {
+  if (typeof rawRoomId !== 'string') {
+    return null;
+  }
+
+  const roomId = rawRoomId.trim().toUpperCase();
+  return /^[A-Z0-9]{6}$/.test(roomId) ? roomId : null;
 }
 
 function createRoom() {
@@ -216,7 +256,7 @@ function createPlaybackState() {
 }
 
 function normalizeVideoInput(rawInput) {
-  if (!rawInput || !rawInput.trim()) {
+  if (typeof rawInput !== 'string' || !rawInput.trim()) {
     return null;
   }
 
