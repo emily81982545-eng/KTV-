@@ -8,6 +8,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rooms = new Map();
 
@@ -378,6 +379,6 @@ function broadcastState(roomId) {
   io.to(roomId).emit('state-sync', { roomId, state: buildRoomState(room) });
 }
 
-server.listen(PORT, () => {
-  console.log(`KTV server is running on http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`KTV server is running on http://${HOST}:${PORT}`);
 });
